@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es6",                        // Target JavaScript version
+    "module": "commonjs",                      // Use CommonJS for modules
+    "rootDir": "src",                          // Root directory for input files
+    "outDir": "dist",                          // Output directory for compiled files
+    "esModuleInterop": true,                     // Allow default imports from CommonJS modules
+    "strict": true,                              // Enable strict type checking
+    "skipLibCheck": true,                        // Skip type checking for declaration files
+    "moduleResolution": "node",
+    "experimentalDecorators": true,              // Enable experimental support for decorators
+    "emitDecoratorMetadata": true                // Emit metadata for decorators
+  },
+  "include": ["src/**/*"]                       // Include all .ts files in the src folder
+}
