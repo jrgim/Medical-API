@@ -89,9 +89,9 @@ export class DatabaseService {
         email TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
         role TEXT NOT NULL CHECK(role IN ('patient', 'doctor', 'admin')),
-        is_active BOOLEAN DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        isActive BOOLEAN DEFAULT 1,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -102,7 +102,7 @@ export class DatabaseService {
         description TEXT,
         phone TEXT,
         location TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -111,157 +111,157 @@ export class DatabaseService {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         description TEXT,
-        department_id INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(department_id) REFERENCES departments(id) ON DELETE SET NULL
+        departmentId INTEGER,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(departmentId) REFERENCES departments(id) ON DELETE SET NULL
       )
     `);
 
     await this.db!.exec(`
       CREATE TABLE IF NOT EXISTS patients (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL UNIQUE,
-        first_name TEXT NOT NULL,
-        last_name TEXT NOT NULL,
+        userId INTEGER NOT NULL UNIQUE,
+        firstName TEXT NOT NULL,
+        lastName TEXT NOT NULL,
         dni TEXT UNIQUE,
         phone TEXT,
-        date_of_birth DATE,
+        dateOfBirth DATE,
         gender TEXT CHECK(gender IN ('male', 'female', 'other')),
         address TEXT,
         city TEXT,
         country TEXT,
-        postal_code TEXT,
+        postalCode TEXT,
         allergies TEXT,
-        insurance_number TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        insuranceNumber TEXT,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
     await this.db!.exec(`
       CREATE TABLE IF NOT EXISTS doctors (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL UNIQUE,
-        first_name TEXT NOT NULL,
-        last_name TEXT NOT NULL,
-        license_number TEXT NOT NULL UNIQUE,
+        userId INTEGER NOT NULL UNIQUE,
+        firstName TEXT NOT NULL,
+        lastName TEXT NOT NULL,
+        licenseNumber TEXT NOT NULL UNIQUE,
         phone TEXT,
         bio TEXT,
-        consultation_fee REAL,
-        years_of_experience INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        consultationFee REAL,
+        yearsOfExperience INTEGER,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
     await this.db!.exec(`
-      CREATE TABLE IF NOT EXISTS doctor_specialties (
+      CREATE TABLE IF NOT EXISTS doctorSpecialties (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        doctor_id INTEGER NOT NULL,
-        specialty_id INTEGER NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
-        FOREIGN KEY(specialty_id) REFERENCES specialties(id) ON DELETE CASCADE,
-        UNIQUE(doctor_id, specialty_id)
+        doctorId INTEGER NOT NULL,
+        specialtyId INTEGER NOT NULL,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(doctorId) REFERENCES doctors(id) ON DELETE CASCADE,
+        FOREIGN KEY(specialtyId) REFERENCES specialties(id) ON DELETE CASCADE,
+        UNIQUE(doctorId, specialtyId)
       )
     `);
 
     await this.db!.exec(`
       CREATE TABLE IF NOT EXISTS availabilities (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        doctor_id INTEGER NOT NULL,
-        day_of_week INTEGER NOT NULL CHECK(day_of_week >= 0 AND day_of_week <= 6),
-        start_time TIME NOT NULL,
-        end_time TIME NOT NULL,
-        appointment_id INTEGER,
-        is_available BOOLEAN DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
-        FOREIGN KEY(appointment_id) REFERENCES appointments(id) ON DELETE SET NULL
+        doctorId INTEGER NOT NULL,
+        dayOfWeek INTEGER NOT NULL CHECK(dayOfWeek >= 0 AND dayOfWeek <= 6),
+        startTime TIME NOT NULL,
+        endTime TIME NOT NULL,
+        appointmentId INTEGER,
+        isAvailable BOOLEAN DEFAULT 1,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(doctorId) REFERENCES doctors(id) ON DELETE CASCADE,
+        FOREIGN KEY(appointmentId) REFERENCES appointments(id) ON DELETE SET NULL
       )
     `);
 
     await this.db!.exec(`
       CREATE TABLE IF NOT EXISTS appointments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        patient_id INTEGER NOT NULL,
-        doctor_id INTEGER NOT NULL,
-        appointment_date DATE NOT NULL,
-        appointment_time TIME NOT NULL,
+        patientId INTEGER NOT NULL,
+        doctorId INTEGER NOT NULL,
+        appointmentDate DATE NOT NULL,
+        appointmentTime TIME NOT NULL,
         status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled', 'confirmed', 'cancelled', 'completed', 'no_show')),
         reason TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-        FOREIGN KEY(doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(patientId) REFERENCES patients(id) ON DELETE CASCADE,
+        FOREIGN KEY(doctorId) REFERENCES doctors(id) ON DELETE CASCADE
       )
     `);
 
     await this.db!.exec(`
-      CREATE TABLE IF NOT EXISTS medical_records (
+      CREATE TABLE IF NOT EXISTS medicalRecords (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        patient_id INTEGER NOT NULL,
-        doctor_id INTEGER NOT NULL,
-        appointment_id INTEGER,
+        patientId INTEGER NOT NULL,
+        doctorId INTEGER NOT NULL,
+        appointmentId INTEGER,
         diagnosis TEXT NOT NULL,
         notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-        FOREIGN KEY(doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
-        FOREIGN KEY(appointment_id) REFERENCES appointments(id) ON DELETE SET NULL
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(patientId) REFERENCES patients(id) ON DELETE CASCADE,
+        FOREIGN KEY(doctorId) REFERENCES doctors(id) ON DELETE CASCADE,
+        FOREIGN KEY(appointmentId) REFERENCES appointments(id) ON DELETE SET NULL
       )
     `);
 
     await this.db!.exec(`
       CREATE TABLE IF NOT EXISTS treatments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        medical_record_id INTEGER NOT NULL,
+        medicalRecordId INTEGER NOT NULL,
         medication TEXT NOT NULL,
         duration TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(medical_record_id) REFERENCES medical_records(id) ON DELETE CASCADE
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(medicalRecordId) REFERENCES medicalRecords(id) ON DELETE CASCADE
       )
     `);
 
     await this.db!.exec(`
-      CREATE TABLE IF NOT EXISTS test_results (
+      CREATE TABLE IF NOT EXISTS testResults (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        medical_record_id INTEGER NOT NULL,
-        test_name TEXT NOT NULL,
-        test_date DATE,
+        medicalRecordId INTEGER NOT NULL,
+        testName TEXT NOT NULL,
+        testDate DATE,
         result TEXT,
         notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(medical_record_id) REFERENCES medical_records(id) ON DELETE CASCADE
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(medicalRecordId) REFERENCES medicalRecords(id) ON DELETE CASCADE
       )
     `);
 
     await this.db!.exec(`
       CREATE TABLE IF NOT EXISTS notifications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
+        userId INTEGER NOT NULL,
         title TEXT NOT NULL,
         message TEXT NOT NULL,
         type TEXT NOT NULL CHECK(type IN ('appointment', 'reminder', 'system', 'alert')),
-        is_read BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        isRead BOOLEAN DEFAULT 0,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
     await this.db!.exec(`
-      CREATE TABLE IF NOT EXISTS audit_logs (
+      CREATE TABLE IF NOT EXISTS auditLogs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
+        userId INTEGER,
         action TEXT NOT NULL,
-        entity_type TEXT NOT NULL,
-        entity_id INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+        entityType TEXT NOT NULL,
+        entityId INTEGER,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(userId) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
 

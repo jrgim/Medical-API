@@ -36,7 +36,7 @@ export class UserRepository {
 
   async findAll(filters?: { role?: string }): Promise<UserResponseDto[]> {
     let sql =
-      "SELECT id, email, role, is_active, created_at, updated_at FROM users";
+      "SELECT id, email, role, isActive, createdAt, updatedAt FROM users";
     const params: any[] = [];
 
     if (filters?.role) {
@@ -50,11 +50,11 @@ export class UserRepository {
 
   async search(query: string, role?: string): Promise<UserResponseDto[]> {
     let sql = `
-      SELECT id, email, role, is_active, created_at, updated_at FROM users 
+      SELECT id, email, role, isActive, createdAt, updatedAt FROM users 
       WHERE (email LIKE ? OR id IN (
-        SELECT user_id FROM patients WHERE first_name LIKE ? OR last_name LIKE ?
+        SELECT userId FROM patients WHERE firstName LIKE ? OR lastName LIKE ?
         UNION
-        SELECT user_id FROM doctors WHERE first_name LIKE ? OR last_name LIKE ?
+        SELECT userId FROM doctors WHERE firstName LIKE ? OR lastName LIKE ?
       ))
     `;
     const params: any[] = [
