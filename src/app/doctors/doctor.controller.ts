@@ -16,7 +16,11 @@ export class DoctorController {
 
     private setupRoutes(): void {
         const createDoctorValidation = [
-        body("userId").notEmpty(),
+        body("email").isEmail(),
+        body("password").isLength({ min: 8 }),
+        body("firstName").notEmpty(),
+        body("lastName").notEmpty(),
+        body("licenseNumber").notEmpty(),
         body("specialtyIds").isArray(),
         validate,
         ];
@@ -29,9 +33,9 @@ export class DoctorController {
         this.router.delete("/:id",authenticateToken,authorizeRole(["admin"]),this.delete.bind(this));
         }
 
-        getRouter(): Router {
-            return this.router;
-        }
+    getRouter(): Router {
+        return this.router;
+    }
 
     async getAll(req: Request, res: Response): Promise<void> {
         try {
