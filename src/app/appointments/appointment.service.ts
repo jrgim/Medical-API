@@ -1,6 +1,7 @@
 import { Service } from "typedi";
 import { AppointmentRepository } from "./appointment.repository";
 import { AvailabilityRepository } from "../availability/availability.repository";
+import { NotificationService } from "../notifications/notification.service";
 import {
   Appointment,
   AppointmentCreateDto,
@@ -12,6 +13,7 @@ export class AppointmentService {
   constructor(
     private readonly appointmentRepository: AppointmentRepository,
     private readonly availabilityRepository: AvailabilityRepository,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async getAppointments(criteria: any): Promise<Appointment[]> {
@@ -42,6 +44,12 @@ export class AppointmentService {
 
     const appointment =
       await this.appointmentRepository.create(appointmentData);
+      await this.notificationService.createNotification({
+      userId: appointment.patientId,
+      title: "Appointment Confirmed",
+      message: `Your appointment has been confirmed for ${appointment.appointmentDate} at ${appointment.appointmentTime}`,
+      type: "appointment",
+    });
     return appointment;
   }
 
@@ -116,7 +124,21 @@ export class AppointmentService {
       appointmentTime: time,
     };
 
-    return await this.appointmentRepository.update(id, updateData);
+    const updatedAppointment = await this.appointmentRepository.update(
+      id,
+      updateData,
+    );
+
+    if (updatedAppointment) {
+      await this.notificationService.createNotification({
+        userId: appointment.patientId,
+        title: "Appointment Rescheduled",
+        message: `Your appointment has been rescheduled for ${date} at ${time}${reason ? `. Reason: ${reason}` : ""}`,
+        type: "appointment",
+      });
+    }
+
+    return updatedAppointment;
   }
 
   async cancelAppointment(
@@ -136,6 +158,20 @@ export class AppointmentService {
       status: "cancelled",
     };
 
-    return await this.appointmentRepository.update(id, updateData);
+    const cancelledAppointment = await this.appointmentRepository.update(
+      id,
+      updateData,
+    );
+
+    if (cancelledAppointment) {
+      await this.notificationService.createNotification({
+        userId: appointment.patientId,
+        title: "Appointment Cancelled",
+        message: `Your appointment on ${appointment.appointmentDate} at ${appointment.appointmentTime} has been cancelled${reason ? `. Reason: ${reason}` : ""}`,
+        type: "appointment",
+      });
+    }
+
+    return cancelledAppointment;
   }
 }
