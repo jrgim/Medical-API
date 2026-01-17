@@ -5,12 +5,16 @@ import { MedicalRecordService } from "./medicalRecord.service";
 import { authenticateToken } from "../../server/middlewares/auth.middleware";
 import { authorizeRole } from "../../server/middlewares/authorization.middleware";
 import { validate } from "../../server/middlewares/validation.middleware";
+import { AuditLogService } from "../audit/auditLog.service";
 
 @Service()
 export class MedicalRecordController {
   private router = Router();
 
-  constructor(private readonly medicalRecordService: MedicalRecordService) {
+  constructor(
+    private readonly medicalRecordService: MedicalRecordService,
+    private readonly auditLogService: AuditLogService,
+  ) {
     this.setupRoutes();
   }
 
@@ -83,7 +87,17 @@ export class MedicalRecordController {
 
   async create(req: Request, res: Response): Promise<void> {
     try {
-      const record = await this.medicalRecordService.createMedicalRecord(req.body);
+      const record = await this.medicalRecordService.createMedicalRecord(
+        req.body,
+      );
+
+      await this.auditLogService.logAction(
+        (req as any).user.id,
+        "CREATE",
+        "medicalRecord",
+        record.id,
+      );
+
       res.status(201).json(record);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -92,11 +106,23 @@ export class MedicalRecordController {
 
   async update(req: Request, res: Response): Promise<void> {
     try {
-      const record = await this.medicalRecordService.updateMedicalRecord(parseInt(req.params.id as string), req.body);
+      const recordId = parseInt(req.params.id as string);
+      const record = await this.medicalRecordService.updateMedicalRecord(
+        recordId,
+        req.body,
+      );
       if (!record) {
         res.status(404).json({ message: "Medical Record not found" });
         return;
       }
+      
+      await this.auditLogService.logAction(
+        (req as any).user.id,
+        "UPDATE",
+        "medicalRecord",
+        recordId,
+      );
+
       res.json(record);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -105,11 +131,21 @@ export class MedicalRecordController {
 
   async delete(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.medicalRecordService.deleteMedicalRecord(parseInt(req.params.id as string));
+      const recordId = parseInt(req.params.id as string);
+      const result =
+        await this.medicalRecordService.deleteMedicalRecord(recordId);
       if (!result) {
         res.status(404).json({ message: "Medical Record not found" });
         return;
       }
+
+      await this.auditLogService.logAction(
+        (req as any).user.id,
+        "DELETE",
+        "medicalRecord",
+        recordId,
+      );
+
       res.sendStatus(204);
     } catch (error: any) {
       res.status(500).json({ message: error.message });

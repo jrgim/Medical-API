@@ -5,12 +5,16 @@ import { AppointmentService } from "./appointment.service";
 import { authenticateToken } from "../../server/middlewares/auth.middleware";
 import { authorizeRole } from "../../server/middlewares/authorization.middleware";
 import { validate } from "../../server/middlewares/validation.middleware";
+import { AuditLogService } from "../audit/auditLog.service";
 
 @Service()
 export class AppointmentController {
   private router = Router();
 
-  constructor(private readonly appointmentService: AppointmentService) {
+  constructor(
+    private readonly appointmentService: AppointmentService,
+    private readonly auditLogService: AuditLogService,
+  ) {
     this.setupRoutes();
   }
 
@@ -46,7 +50,7 @@ export class AppointmentController {
   async getAll(req: Request, res: Response): Promise<void> {
     try {
       const appointments = await this.appointmentService.getAppointments(
-        req.query
+        req.query,
       );
       res.json(appointments);
     } catch (error: any) {
@@ -57,7 +61,7 @@ export class AppointmentController {
   async getById(req: Request, res: Response): Promise<void> {
     try {
       const appointment = await this.appointmentService.getAppointmentById(
-        parseInt(req.params.id as string)
+        parseInt(req.params.id as string),
       );
       if (!appointment) {
         res.status(404).json({ message: "Appointment not found" });
@@ -72,8 +76,16 @@ export class AppointmentController {
   async create(req: Request, res: Response): Promise<void> {
     try {
       const appointment = await this.appointmentService.createAppointment(
-        req.body
+        req.body,
       );
+
+      await this.auditLogService.logAction(
+        (req as any).user.id,
+        "CREATE",
+        "appointment",
+        appointment.id,
+      );
+
       res.status(201).json(appointment);
     } catch (error: any) {
       if (
@@ -90,15 +102,24 @@ export class AppointmentController {
   async reschedule(req: Request, res: Response): Promise<void> {
     try {
       const { newDateTime, reason } = req.body;
+      const appointmentId = parseInt(req.params.id as string);
       const appointment = await this.appointmentService.rescheduleAppointment(
-        parseInt(req.params.id as string),
+        appointmentId,
         newDateTime,
-        reason
+        reason,
       );
       if (!appointment) {
         res.status(404).json({ message: "Appointment not found" });
         return;
       }
+
+      await this.auditLogService.logAction(
+        (req as any).user.id,
+        "RESCHEDULE",
+        "appointment",
+        appointmentId,
+      );
+
       res.json(appointment);
     } catch (error: any) {
       if (
@@ -115,14 +136,23 @@ export class AppointmentController {
   async cancel(req: Request, res: Response): Promise<void> {
     try {
       const { reason } = req.body;
+      const appointmentId = parseInt(req.params.id as string);
       const appointment = await this.appointmentService.cancelAppointment(
-        parseInt(req.params.id as string),
-        reason
+        appointmentId,
+        reason,
       );
       if (!appointment) {
         res.status(404).json({ message: "Appointment not found" });
         return;
       }
+
+      await this.auditLogService.logAction(
+        (req as any).user.id,
+        "CANCEL",
+        "appointment",
+        appointmentId,
+      );
+
       res.json(appointment);
     } catch (error: any) {
       if (error.message.includes("cannot be cancelled")) {
@@ -136,7 +166,7 @@ export class AppointmentController {
   async delete(req: Request, res: Response): Promise<void> {
     try {
       const result = await this.appointmentService.deleteAppointment(
-        parseInt(req.params.id as string)
+        parseInt(req.params.id as string),
       );
       if (!result) {
         res.status(404).json({ message: "Appointment not found" });
