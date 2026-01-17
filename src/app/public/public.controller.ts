@@ -3,12 +3,16 @@ import { Router, Request, Response } from "express";
 import { body } from "express-validator";
 import { PublicService } from "./public.service";
 import { validate } from "../../server/middlewares/validation.middleware";
+import { AuditLogService } from "../audit/auditLog.service";
 
 @Service()
 export class PublicController {
     private router = Router();
 
-    constructor(private readonly publicService: PublicService) {
+    constructor(
+        private readonly publicService: PublicService,
+        private readonly auditLogService: AuditLogService,
+    ) {
         this.setupRoutes();
     }
 
@@ -58,8 +62,23 @@ export class PublicController {
             req.body.email,
             req.body.password,
         );
+
+        await this.auditLogService.logAction(
+            result.user.id,
+            "LOGIN",
+            "user",
+            result.user.id,
+        );
+
         res.json(result);
         } catch (error: any) {
+        await this.auditLogService.logAction(
+            undefined,
+            "LOGIN_FAILED",
+            "user",
+            undefined,
+        );
+
         res.status(401).json({ message: error.message });
         }
     }

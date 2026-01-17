@@ -6,6 +6,7 @@ import { MedicalRecordService } from "../medical-records/medicalRecord.service";
 import { authenticateToken } from "../../server/middlewares/auth.middleware";
 import { authorizeRole } from "../../server/middlewares/authorization.middleware";
 import { validate } from "../../server/middlewares/validation.middleware";
+import { AuditLogService } from "../audit/auditLog.service";
 
 @Service()
 export class PatientController {
@@ -13,7 +14,8 @@ export class PatientController {
 
   constructor(
     private readonly patientService: PatientService,
-    private readonly medicalRecordService: MedicalRecordService
+    private readonly medicalRecordService: MedicalRecordService,
+    private readonly auditLogService: AuditLogService
   ) {
     this.setupRoutes();
   }
@@ -82,6 +84,14 @@ export class PatientController {
   async create(req: Request, res: Response): Promise<void> {
     try {
       const patient = await this.patientService.createPatient(req.body);
+      
+      await this.auditLogService.logAction(
+        (req as any).user?.id,
+        'CREATE',
+        'patient',
+        patient.id
+      );
+
       res.status(201).json(patient);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -106,8 +116,14 @@ export class PatientController {
 
   async delete(req: Request, res: Response): Promise<void> {
     try {
-      await this.patientService.deletePatient(
-        parseInt(req.params.id as string)
+      const patientId = parseInt(req.params.id as string);
+      await this.patientService.deletePatient(patientId);
+      
+      await this.auditLogService.logAction(
+        (req as any).user.id,
+        "DELETE",
+        "patient",
+        patientId,
       );
       res.sendStatus(204);
     } catch (error: any) {

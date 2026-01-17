@@ -5,13 +5,17 @@ import { DoctorService } from "./doctor.service";
 import { authenticateToken } from "../../server/middlewares/auth.middleware";
 import { authorizeRole } from "../../server/middlewares/authorization.middleware";
 import { validate } from "../../server/middlewares/validation.middleware";
+import { AuditLogService } from "../audit/auditLog.service";
 
 @Service()
 export class DoctorController {
     private router = Router();
 
-    constructor(private readonly doctorService: DoctorService) {
-        this.setupRoutes();
+    constructor(
+    private readonly doctorService: DoctorService,
+    private readonly auditLogService: AuditLogService,
+    ) {
+    this.setupRoutes();
     }
 
     private setupRoutes(): void {
@@ -64,6 +68,14 @@ export class DoctorController {
     async create(req: Request, res: Response): Promise<void> {
         try {
         const doctor = await this.doctorService.createDoctor(req.body);
+        
+        await this.auditLogService.logAction(
+            (req as any).user.id,
+            "CREATE",
+            "doctor",
+            doctor.id,
+        );
+
         res.status(201).json(doctor);
         } catch (error: any) {
         res.status(400).json({ message: error.message });
@@ -88,10 +100,19 @@ export class DoctorController {
 
     async updateSpecialties(req: Request, res: Response): Promise<void> {
         try {
+        const doctorId = parseInt(req.params.id as string);
         const doctor = await this.doctorService.updateSpecialties(
-            parseInt(req.params.id as string),
-            req.body.specialtyIds
+            doctorId,
+            req.body.specialtyIds,
         );
+        
+        await this.auditLogService.logAction(
+            (req as any).user.id,
+            "UPDATE_SPECIALTIES",
+            "doctor",
+            doctorId,
+        );
+
         res.json(doctor);
         } catch (error: any) {
         res.status(400).json({ message: error.message });
@@ -100,13 +121,20 @@ export class DoctorController {
 
     async delete(req: Request, res: Response): Promise<void> {
         try {
-        const result = await this.doctorService.deleteDoctor(
-            parseInt(req.params.id as string)
-        );
+        const doctorId = parseInt(req.params.id as string);
+        const result = await this.doctorService.deleteDoctor(doctorId);
         if (!result) {
             res.status(404).json({ message: "Doctor not found" });
             return;
         }
+        
+        await this.auditLogService.logAction(
+            (req as any).user.id,
+            "DELETE",
+            "doctor",
+            doctorId,
+        );
+
         res.sendStatus(204);
         } catch (error: any) {
         res.status(500).json({ message: error.message });

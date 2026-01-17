@@ -21,6 +21,11 @@ export class DoctorService {
 
     async createDoctor(data: any): Promise<any> {
         try {
+        const existingUser = await this.userRepository.findByEmail(data.email);
+        if (existingUser) {
+        throw new Error("Email already in use");
+        }
+
         const hashedPassword = await bcrypt.hash(data.password, 10);
         const user = await this.userRepository.create({
             email: data.email,
