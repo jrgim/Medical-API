@@ -1,5 +1,6 @@
 import { Service } from "typedi";
 import { MedicalRecordRepository } from "./medicalRecord.repository";
+import { NotificationService } from "../notifications/notification.service";
 import { databaseService } from "../../database";
 import { MedicalRecord, MedicalRecordCreateDto, MedicalRecordUpdateDto } from "./medicalRecord.model";
 import { TestResult, TestResultCreateDto } from "./testResult.model";
@@ -8,7 +9,8 @@ import { Treatment, TreatmentCreateDto, TreatmentUpdateDto } from "./treatment.m
 @Service()
 export class MedicalRecordService {
   constructor(
-    private readonly medicalRecordRepository: MedicalRecordRepository
+    private readonly medicalRecordRepository: MedicalRecordRepository,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async getAllMedicalRecords(criteria: any): Promise<MedicalRecord[]> {
@@ -27,9 +29,24 @@ export class MedicalRecordService {
 
   async updateMedicalRecord(
     id: number,
-    data: MedicalRecordUpdateDto
+    data: MedicalRecordUpdateDto,
   ): Promise<MedicalRecord | null> {
-    return await this.medicalRecordRepository.update(id, data);
+    const record = await this.medicalRecordRepository.findById(id);
+    if (!record) return null;
+
+    const updatedRecord = await this.medicalRecordRepository.update(id, data);
+
+    if (updatedRecord) {
+      await this.notificationService.createNotification({
+        userId: record.patientId,
+        title: "Medical Record Updated",
+        message:
+          "Your medical record has been updated by your doctor. Please review the changes in your profile.",
+        type: "alert",
+      });
+    }
+
+    return updatedRecord;
   }
 
   async deleteMedicalRecord(id: number): Promise<boolean> {
@@ -37,7 +54,6 @@ export class MedicalRecordService {
   }
 
   async getPatientMedicalRecords(patientId: number): Promise<MedicalRecord[]> {
-    // Verify patient exists
     const patientCheck = await databaseService.execQuery({
       sql: "SELECT id FROM patients WHERE id = ?",
       params: [patientId],
@@ -51,7 +67,6 @@ export class MedicalRecordService {
   }
 
   async addTestResult(recordId: number, data: any): Promise<TestResult> {
-    // Verify medical record exists
     const record = await this.medicalRecordRepository.findById(recordId);
     if (!record) {
       throw new Error("Medical Record not found");
@@ -76,7 +91,12 @@ export class MedicalRecordService {
         testResultData.notes || null,
       ],
     });
-
+    await this.notificationService.createNotification({
+      userId: record.patientId,
+      title: "New Test Result Available",
+      message: `The results of your test "${testResultData.testName}" are now available.`,
+      type: "alert",
+    });
     return {
       id: result.lastID!,
       ...testResultData,
