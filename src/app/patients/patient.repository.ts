@@ -46,6 +46,24 @@ export class PatientRepository {
     return result.rows[0] || null;
   }
 
+  async findPatientsByDoctorId(doctorId: number): Promise<Patient[]> {
+    const result = await this.databaseService.execQuery({
+      sql: `
+        SELECT DISTINCT
+          p.*,
+          u.email, u.role, u.isActive,
+          u.createdAt as userCreatedAt, u.updatedAt as userUpdatedAt
+        FROM patients p
+        LEFT JOIN users u ON p.userId = u.id
+        INNER JOIN appointments a ON p.id = a.patientId
+        WHERE a.doctorId = ?
+        ORDER BY p.id DESC
+      `,
+      params: [doctorId],
+    });
+    return result.rows;
+  }
+
   async create(patientData: PatientCreateDto): Promise<Patient> {
     await this.databaseService.execQuery({
       sql: `
