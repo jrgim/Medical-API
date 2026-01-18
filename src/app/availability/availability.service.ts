@@ -5,11 +5,11 @@ import { Availability, AvailabilityCreateDto, AvailabilityUpdateDto } from "./av
 @Service()
 export class AvailabilityService {
   constructor(
-    private readonly availabilityRepository: AvailabilityRepository
+    private readonly availabilityRepository: AvailabilityRepository,
   ) {}
 
-  async getDoctorAvailability(doctorId: number, startDate?: string, endDate?: string): Promise<Availability[]> {
-    return await this.availabilityRepository.findByDoctorId(doctorId, startDate, endDate);
+  async getDoctorAvailability(doctorId: number, date?: string): Promise<Availability[]> {
+    return await this.availabilityRepository.findByDoctorId(doctorId, date);
   }
 
   async setAvailability(doctorId: number, slots: AvailabilityCreateDto[]): Promise<Availability[]> {

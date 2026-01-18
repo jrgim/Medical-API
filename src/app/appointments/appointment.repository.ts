@@ -71,7 +71,7 @@ export class AppointmentRepository {
   }
 
   async create(data: AppointmentCreateDto): Promise<Appointment> {
-    await this.databaseService.execQuery({
+    const result = await this.databaseService.execQuery({
       sql: `
         INSERT INTO appointments (
           patientId, doctorId, appointmentDate, appointmentTime,
@@ -88,16 +88,21 @@ export class AppointmentRepository {
       ],
     });
 
-    const result = await this.databaseService.execQuery({
-      sql: "SELECT * FROM appointments WHERE id = last_insert_rowid()",
-      params: [],
+    if (!result.lastID) {
+      throw new Error("Failed to insert appointment");
+    }
+
+    const appointment = await this.databaseService.execQuery({
+      sql: "SELECT * FROM appointments WHERE id = ?",
+      params: [result.lastID],
     });
-    return result.rows[0];
+
+    return appointment.rows[0];
   }
 
   async update(
     id: number,
-    data: AppointmentUpdateDto
+    data: AppointmentUpdateDto,
   ): Promise<Appointment | null> {
     const appointment = await this.findById(id);
     if (!appointment) return null;

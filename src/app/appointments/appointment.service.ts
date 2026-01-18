@@ -2,6 +2,7 @@ import { Service } from "typedi";
 import { AppointmentRepository } from "./appointment.repository";
 import { AvailabilityRepository } from "../availability/availability.repository";
 import { NotificationService } from "../notifications/notification.service";
+import { PatientRepository } from "../patients/patient.repository";
 import {
   Appointment,
   AppointmentCreateDto,
@@ -14,7 +15,12 @@ export class AppointmentService {
     private readonly appointmentRepository: AppointmentRepository,
     private readonly availabilityRepository: AvailabilityRepository,
     private readonly notificationService: NotificationService,
+    private readonly patientRepository: PatientRepository,
   ) {}
+
+  async getPatientByUserId(userId: number) {
+    return await this.patientRepository.findByUserId(userId);
+  }
 
   async getAppointments(criteria: any): Promise<Appointment[]> {
     return await this.appointmentRepository.findAll(criteria);
@@ -25,9 +31,14 @@ export class AppointmentService {
   }
 
   async createAppointment(data: any): Promise<Appointment> {
-    const slots = await this.availabilityRepository.findByDoctorId(data.doctorId, data.appointmentDate, data.appointmentDate);
+    const slots = await this.availabilityRepository.findByDoctorId(
+      data.doctorId,
+      data.appointmentDate,
+    );
 
-    const availableSlot = slots.find((slot) => slot.startTime === data.appointmentTime && slot.isAvailable && !slot.appointmentId);
+    const availableSlot = slots.find(
+      (slot) => slot.time === data.appointmentTime && slot.isAvailable,
+    );
 
     if (!availableSlot) {
       throw new Error("No availability slot found for this date and time");
@@ -44,12 +55,28 @@ export class AppointmentService {
 
     const appointment =
       await this.appointmentRepository.create(appointmentData);
+
+    if (!appointment) {
+      throw new Error("Failed to create appointment");
+    }
+
+    await this.availabilityRepository.updateAvailabilityStatus(
+      data.doctorId,
+      data.appointmentDate,
+      data.appointmentTime,
+      false,
+    );
+
+    const patient = await this.patientRepository.findById(data.patientId);
+    if (patient && patient.userId) {
       await this.notificationService.createNotification({
-      userId: appointment.patientId,
-      title: "Appointment Confirmed",
-      message: `Your appointment has been confirmed for ${appointment.appointmentDate} at ${appointment.appointmentTime}`,
-      type: "appointment",
-    });
+        userId: patient.userId,
+        title: "Appointment Confirmed",
+        message: `Your appointment has been confirmed for ${data.appointmentDate} at ${data.appointmentTime}`,
+        type: "appointment",
+      });
+    }
+
     return appointment;
   }
 
@@ -66,9 +93,14 @@ export class AppointmentService {
       const newDate = data.appointmentDate || appointment.appointmentDate;
       const newTime = data.appointmentTime || appointment.appointmentTime;
 
-      const slots = await this.availabilityRepository.findByDoctorId(appointment.doctorId, newDate, newDate);
+      const slots = await this.availabilityRepository.findByDoctorId(
+        appointment.doctorId,
+        newDate,
+      );
 
-      const availableSlot = slots.find((slot) => slot.startTime === newTime && slot.isAvailable && !slot.appointmentId);
+      const availableSlot = slots.find(
+        (slot) => slot.time === newTime && slot.isAvailable,
+      );
 
       if (!availableSlot) {
         throw new Error("New time slot is not available");
@@ -107,12 +139,10 @@ export class AppointmentService {
     const slots = await this.availabilityRepository.findByDoctorId(
       appointment.doctorId,
       date,
-      date,
     );
 
     const availableSlot = slots.find(
-      (slot) =>
-        slot.startTime === time && slot.isAvailable && !slot.appointmentId,
+      (slot) => slot.time === time && slot.isAvailable,
     );
 
     if (!availableSlot) {
@@ -130,12 +160,17 @@ export class AppointmentService {
     );
 
     if (updatedAppointment) {
-      await this.notificationService.createNotification({
-        userId: appointment.patientId,
-        title: "Appointment Rescheduled",
-        message: `Your appointment has been rescheduled for ${date} at ${time}${reason ? `. Reason: ${reason}` : ""}`,
-        type: "appointment",
-      });
+      const patient = await this.patientRepository.findById(
+        appointment.patientId,
+      );
+      if (patient && patient.userId) {
+        await this.notificationService.createNotification({
+          userId: patient.userId,
+          title: "Appointment Rescheduled",
+          message: `Your appointment has been rescheduled for ${date} at ${time}${reason ? `. Reason: ${reason}` : ""}`,
+          type: "appointment",
+        });
+      }
     }
 
     return updatedAppointment;
@@ -163,13 +198,25 @@ export class AppointmentService {
       updateData,
     );
 
+    await this.availabilityRepository.updateAvailabilityStatus(
+      appointment.doctorId,
+      appointment.appointmentDate,
+      appointment.appointmentTime,
+      true,
+    );
+
     if (cancelledAppointment) {
-      await this.notificationService.createNotification({
-        userId: appointment.patientId,
-        title: "Appointment Cancelled",
-        message: `Your appointment on ${appointment.appointmentDate} at ${appointment.appointmentTime} has been cancelled${reason ? `. Reason: ${reason}` : ""}`,
-        type: "appointment",
-      });
+      const patient = await this.patientRepository.findById(
+        appointment.patientId,
+      );
+      if (patient && patient.userId) {
+        await this.notificationService.createNotification({
+          userId: patient.userId,
+          title: "Cita Cancelada",
+          message: `Su cita del ${appointment.appointmentDate} a las ${appointment.appointmentTime} ha sido cancelada${reason ? `. Razón: ${reason}` : ""}`,
+          type: "appointment",
+        });
+      }
     }
 
     return cancelledAppointment;

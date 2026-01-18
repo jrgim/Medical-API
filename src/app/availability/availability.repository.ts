@@ -10,16 +10,19 @@ import { DatabaseService } from "../../database/database.service";
 export class AvailabilityRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
-  async findByDoctorId(doctorId: number, startDate?: string, endDate?: string): Promise<Availability[]> {
+  async findByDoctorId(
+    doctorId: number,
+    date?: string,
+  ): Promise<Availability[]> {
     let sql = "SELECT * FROM availabilities WHERE doctorId = ?";
     const params: any[] = [doctorId];
 
-    if (startDate && endDate) {
-      sql += " AND startTime BETWEEN ? AND ?";
-      params.push(startDate, endDate);
+    if (date) {
+      sql += " AND date = ?";
+      params.push(date);
     }
 
-    sql += " ORDER BY startTime";
+    sql += " ORDER BY date, time";
 
     const result = await this.databaseService.execQuery({ sql, params });
     return result.rows;
@@ -32,14 +35,13 @@ export class AvailabilityRepository {
       await this.databaseService.execQuery({
         sql: `
           INSERT INTO availabilities (
-            doctorId, dayOfWeek, startTime, endTime, isAvailable
-          ) VALUES (?, ?, ?, ?, ?)
+            doctorId, date, time, isAvailable
+          ) VALUES (?, ?, ?, ?)
         `,
         params: [
           item.doctorId,
-          item.dayOfWeek,
-          item.startTime,
-          item.endTime,
+          item.date,
+          item.time,
           item.isAvailable !== undefined ? item.isAvailable : true,
         ],
       });
@@ -54,7 +56,10 @@ export class AvailabilityRepository {
     return created;
   }
 
-  async update(id: number, data: AvailabilityUpdateDto): Promise<Availability | null> {
+  async update(
+    id: number,
+    data: AvailabilityUpdateDto,
+  ): Promise<Availability | null> {
     const result = await this.databaseService.execQuery({
       sql: "SELECT * FROM availabilities WHERE id = ?",
       params: [id],
@@ -65,17 +70,13 @@ export class AvailabilityRepository {
     const updates: string[] = [];
     const params: any[] = [];
 
-    if (data.dayOfWeek !== undefined) {
-      updates.push("dayOfWeek = ?");
-      params.push(data.dayOfWeek);
+    if (data.date !== undefined) {
+      updates.push("date = ?");
+      params.push(data.date);
     }
-    if (data.startTime !== undefined) {
-      updates.push("startTime = ?");
-      params.push(data.startTime);
-    }
-    if (data.endTime !== undefined) {
-      updates.push("endTime = ?");
-      params.push(data.endTime);
+    if (data.time !== undefined) {
+      updates.push("time = ?");
+      params.push(data.time);
     }
     if (data.isAvailable !== undefined) {
       updates.push("isAvailable = ?");
@@ -103,5 +104,19 @@ export class AvailabilityRepository {
       params: [id],
     });
     return result.rowCount > 0;
+  }
+
+  async updateAvailabilityStatus(
+    doctorId: number,
+    date: string,
+    time: string,
+    isAvailable: boolean,
+  ): Promise<void> {
+    await this.databaseService.execQuery({
+      sql: `UPDATE availabilities 
+            SET isAvailable = ? 
+            WHERE doctorId = ? AND date = ? AND time = ?`,
+      params: [isAvailable ? 1 : 0, doctorId, date, time],
+    });
   }
 }
