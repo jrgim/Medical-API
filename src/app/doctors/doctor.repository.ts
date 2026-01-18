@@ -6,7 +6,44 @@ import { DatabaseService } from "../../database/database.service";
 export class DoctorRepository {
     constructor(private readonly databaseService: DatabaseService) {}
 
-    async findAll(): Promise<DoctorWithSpecialties[]> {
+    async findAll(filters: { specialtyId?: string; date?: string } = {}): Promise<DoctorWithSpecialties[]> {
+        const params: any[] = [];
+        let whereClause = "";
+        let havingClause = "";
+        const conditions: string[] = [];
+
+        if (filters.date) {
+        conditions.push(`
+            EXISTS (
+            SELECT 1 FROM availabilities a 
+            WHERE a.doctorId = d.id 
+            AND DATE(a.startTime) = ? 
+            AND a.appointmentId IS NULL
+            )
+        `);
+        params.push(filters.date);
+        }
+
+        if (conditions.length > 0) {
+        whereClause = "WHERE " + conditions.join(" AND ");
+        }
+
+        if (filters.specialtyId) {
+        if (whereClause) {
+            whereClause += " AND ";
+        } else {
+            whereClause = "WHERE ";
+        }
+        whereClause += `
+                EXISTS (
+                    SELECT 1 FROM doctorSpecialties ds_filter
+                    WHERE ds_filter.doctorId = d.id
+                    AND ds_filter.specialtyId = ?
+                )
+            `;
+        params.push(filters.specialtyId);
+        }
+
         const result = await this.databaseService.execQuery({
         sql: `
             SELECT 
@@ -19,10 +56,11 @@ export class DoctorRepository {
             LEFT JOIN users u ON d.userId = u.id
             LEFT JOIN doctorSpecialties ds ON d.id = ds.doctorId
             LEFT JOIN specialties s ON ds.specialtyId = s.id
+            ${whereClause}
             GROUP BY d.id
             ORDER BY d.id DESC
         `,
-        params: [],
+        params: params,
         });
 
         return result.rows.map((row) => this.mapDoctorWithSpecialties(row));
