@@ -29,9 +29,9 @@ export class DoctorController {
         validate,
         ];
 
-        this.router.get("/", this.getAll.bind(this));
+        this.router.get("/", authenticateToken, this.getAll.bind(this));
         this.router.post("/", authenticateToken, authorizeRole(["admin"]), createDoctorValidation, this.create.bind(this));
-        this.router.get("/:id", this.getById.bind(this));
+        this.router.get("/:id", authenticateToken, this.getById.bind(this));
         this.router.put("/:id", authenticateToken,authorizeRole(["doctor", "admin"]),this.update.bind(this));
         this.router.put("/:id/specialties",authenticateToken,authorizeRole(["admin"]),this.updateSpecialties.bind(this));
         this.router.delete("/:id",authenticateToken,authorizeRole(["admin"]),this.delete.bind(this));
@@ -52,12 +52,27 @@ export class DoctorController {
 
     async getById(req: Request, res: Response): Promise<void> {
         try {
-        const doctor = await this.doctorService.getDoctorById(
-            parseInt(req.params.id as string)
-        );
+        const user = (req as any).user;
+        const doctorId = parseInt(req.params.id as string);
+
+        const doctor = await this.doctorService.getDoctorById(doctorId);
         if (!doctor) {
             res.status(404).json({ message: "Doctor not found" });
             return;
+        }
+
+        if (user.role === "doctor") {
+            const doctorProfile = await this.doctorService.getDoctorByUserId(
+            user.id,
+            );
+            if (!doctorProfile || doctorProfile.id !== doctorId) {
+            res
+                .status(403)
+                .json({
+                message: "Access denied: You can only view your own profile",
+                });
+            return;
+            }
         }
         res.json(doctor);
         } catch (error: any) {
@@ -68,7 +83,7 @@ export class DoctorController {
     async create(req: Request, res: Response): Promise<void> {
         try {
         const doctor = await this.doctorService.createDoctor(req.body);
-        
+
         await this.auditLogService.logAction(
             (req as any).user.id,
             "CREATE",
@@ -84,10 +99,23 @@ export class DoctorController {
 
     async update(req: Request, res: Response): Promise<void> {
         try {
-        const doctor = await this.doctorService.updateDoctor(
-            parseInt(req.params.id as string),
-            req.body
-        );
+        const user = (req as any).user;
+        const doctorId = parseInt(req.params.id as string);
+        if (user.role === "doctor") {
+            const doctorProfile = await this.doctorService.getDoctorByUserId(
+            user.id,
+            );
+            if (!doctorProfile || doctorProfile.id !== doctorId) {
+            res
+                .status(403)
+                .json({
+                message: "Access denied: You can only update your own profile",
+                });
+            return;
+            }
+        }
+
+        const doctor = await this.doctorService.updateDoctor(doctorId, req.body);
         if (!doctor) {
             res.status(404).json({ message: "Doctor not found" });
             return;
@@ -105,7 +133,7 @@ export class DoctorController {
             doctorId,
             req.body.specialtyIds,
         );
-        
+
         await this.auditLogService.logAction(
             (req as any).user.id,
             "UPDATE_SPECIALTIES",
@@ -127,7 +155,7 @@ export class DoctorController {
             res.status(404).json({ message: "Doctor not found" });
             return;
         }
-        
+
         await this.auditLogService.logAction(
             (req as any).user.id,
             "DELETE",

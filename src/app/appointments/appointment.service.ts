@@ -3,6 +3,7 @@ import { AppointmentRepository } from "./appointment.repository";
 import { AvailabilityRepository } from "../availability/availability.repository";
 import { NotificationService } from "../notifications/notification.service";
 import { PatientRepository } from "../patients/patient.repository";
+import { DoctorRepository } from "../doctors/doctor.repository";
 import {
   Appointment,
   AppointmentCreateDto,
@@ -16,10 +17,15 @@ export class AppointmentService {
     private readonly availabilityRepository: AvailabilityRepository,
     private readonly notificationService: NotificationService,
     private readonly patientRepository: PatientRepository,
+    private readonly doctorRepository: DoctorRepository,
   ) {}
 
   async getPatientByUserId(userId: number) {
     return await this.patientRepository.findByUserId(userId);
+  }
+
+  async getDoctorByUserId(userId: number) {
+    return await this.doctorRepository.findByUserId(userId);
   }
 
   async getAppointments(criteria: any): Promise<Appointment[]> {

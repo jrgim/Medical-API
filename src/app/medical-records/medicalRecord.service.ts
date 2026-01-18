@@ -1,11 +1,12 @@
 import { Service } from "typedi";
 import { MedicalRecordRepository } from "./medicalRecord.repository";
 import { NotificationService } from "../notifications/notification.service";
+import { PatientRepository } from "../patients/patient.repository";
+import { AppointmentRepository } from "../appointments/appointment.repository";
 import { databaseService } from "../../database";
 import { MedicalRecord, MedicalRecordCreateDto, MedicalRecordUpdateDto } from "./medicalRecord.model";
 import { TestResult, TestResultCreateDto } from "./testResult.model";
 import { Treatment, TreatmentCreateDto, TreatmentUpdateDto } from "./treatment.model";
-import { PatientRepository } from "../patients/patient.repository";
 
 @Service()
 export class MedicalRecordService {
@@ -13,7 +14,12 @@ export class MedicalRecordService {
     private readonly medicalRecordRepository: MedicalRecordRepository,
     private readonly notificationService: NotificationService,
     private readonly patientRepository: PatientRepository,
+    private readonly appointmentRepository: AppointmentRepository,
   ) {}
+
+  async getAppointmentsByDoctorAndPatient(doctorId: number, patientId: number) {
+    return await this.appointmentRepository.findAll({ doctorId, patientId });
+  }
 
   async getAllMedicalRecords(criteria: any): Promise<MedicalRecord[]> {
     return await this.medicalRecordRepository.findAll(criteria);

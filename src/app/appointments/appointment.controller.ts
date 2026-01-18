@@ -49,9 +49,29 @@ export class AppointmentController {
 
   async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const appointments = await this.appointmentService.getAppointments(
-        req.query,
-      );
+      const user = (req as any).user;
+      const criteria: any = { ...req.query };
+      if (user.role === "patient") {
+        const patient = await this.appointmentService.getPatientByUserId(
+          user.id,
+        );
+        if (!patient) {
+          res.status(404).json({ message: "Patient profile not found" });
+          return;
+        }
+        criteria.patientId = patient.id;
+      } else if (user.role === "doctor") {
+        
+        const doctor = await this.appointmentService.getDoctorByUserId(user.id);
+        if (!doctor) {
+          res.status(404).json({ message: "Doctor profile not found" });
+          return;
+        }
+        criteria.doctorId = doctor.id;
+      }
+
+      const appointments =
+        await this.appointmentService.getAppointments(criteria);
       res.json(appointments);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -60,12 +80,38 @@ export class AppointmentController {
 
   async getById(req: Request, res: Response): Promise<void> {
     try {
-      const appointment = await this.appointmentService.getAppointmentById(
-        parseInt(req.params.id as string),
-      );
+      const user = (req as any).user;
+      const appointmentId = parseInt(req.params.id as string);
+
+      const appointment =
+        await this.appointmentService.getAppointmentById(appointmentId);
       if (!appointment) {
         res.status(404).json({ message: "Appointment not found" });
         return;
+      }
+
+      if (user.role === "patient") {
+        const patient = await this.appointmentService.getPatientByUserId(
+          user.id,
+        );
+        if (!patient || appointment.patientId !== patient.id) {
+          res
+            .status(403)
+            .json({
+              message: "Access denied: You can only view your own appointments",
+            });
+          return;
+        }
+      } else if (user.role === "doctor") {
+        const doctor = await this.appointmentService.getDoctorByUserId(user.id);
+        if (!doctor || appointment.doctorId !== doctor.id) {
+          res
+            .status(403)
+            .json({
+              message: "Access denied: You can only view your own appointments",
+            });
+          return;
+        }
       }
       res.json(appointment);
     } catch (error: any) {
@@ -132,20 +178,47 @@ export class AppointmentController {
 
   async reschedule(req: Request, res: Response): Promise<void> {
     try {
+      const user = (req as any).user;
       const { newDateTime, reason } = req.body;
       const appointmentId = parseInt(req.params.id as string);
+
+      const existingAppointment =
+        await this.appointmentService.getAppointmentById(appointmentId);
+      if (!existingAppointment) {
+        res.status(404).json({ message: "Appointment not found" });
+        return;
+      }
+
+      if (user.role === "patient") {
+        const patient = await this.appointmentService.getPatientByUserId(
+          user.id,
+        );
+        if (!patient || existingAppointment.patientId !== patient.id) {
+          res
+            .status(403)
+            .json({
+              message:
+                "Access denied: You can only reschedule your own appointments",
+            });
+          return;
+        }
+      } else if (user.role === "doctor") {
+        res
+          .status(403)
+          .json({
+            message: "Access denied: Doctors cannot reschedule appointments",
+          });
+        return;
+      }
+
       const appointment = await this.appointmentService.rescheduleAppointment(
         appointmentId,
         newDateTime,
         reason,
       );
-      if (!appointment) {
-        res.status(404).json({ message: "Appointment not found" });
-        return;
-      }
 
       await this.auditLogService.logAction(
-        (req as any).user.id,
+        user.id,
         "RESCHEDULE",
         "appointment",
         appointmentId,
@@ -166,19 +239,45 @@ export class AppointmentController {
 
   async cancel(req: Request, res: Response): Promise<void> {
     try {
+      const user = (req as any).user;
       const { reason } = req.body;
       const appointmentId = parseInt(req.params.id as string);
-      const appointment = await this.appointmentService.cancelAppointment(
-        appointmentId,
-        reason,
-      );
-      if (!appointment) {
+
+      const existingAppointment =
+        await this.appointmentService.getAppointmentById(appointmentId);
+      if (!existingAppointment) {
         res.status(404).json({ message: "Appointment not found" });
         return;
       }
 
+      if (user.role === "patient") {
+        const patient = await this.appointmentService.getPatientByUserId(
+          user.id,
+        );
+        if (!patient || existingAppointment.patientId !== patient.id) {
+          res
+            .status(403)
+            .json({
+              message:
+                "Access denied: You can only cancel your own appointments",
+            });
+          return;
+        }
+      } else if (user.role === "doctor") {
+        res
+          .status(403)
+          .json({
+            message: "Access denied: Doctors cannot cancel appointments",
+          });
+        return;
+      }
+      const appointment = await this.appointmentService.cancelAppointment(
+        appointmentId,
+        reason,
+      );
+
       await this.auditLogService.logAction(
-        (req as any).user.id,
+        user.id,
         "CANCEL",
         "appointment",
         appointmentId,

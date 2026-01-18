@@ -14,6 +14,14 @@ export class NotificationRepository {
     return result.rows;
   }
 
+  async findById(id: number): Promise<NotificationModel | null> {
+    const result = await this.databaseService.execQuery({
+      sql: "SELECT * FROM notifications WHERE id = ?",
+      params: [id],
+    });
+    return result.rows[0] || null;
+  }
+
   async create(data: NotificationCreateDto): Promise<NotificationModel> {
     const result = await this.databaseService.execQuery({
       sql: `

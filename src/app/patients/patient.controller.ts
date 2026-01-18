@@ -3,6 +3,8 @@ import { Router, Request, Response } from "express";
 import { body } from "express-validator";
 import { PatientService } from "./patient.service";
 import { MedicalRecordService } from "../medical-records/medicalRecord.service";
+import { DoctorRepository } from "../doctors/doctor.repository";
+import { AppointmentRepository } from "../appointments/appointment.repository";
 import { authenticateToken } from "../../server/middlewares/auth.middleware";
 import { authorizeRole } from "../../server/middlewares/authorization.middleware";
 import { validate } from "../../server/middlewares/validation.middleware";
@@ -15,7 +17,9 @@ export class PatientController {
   constructor(
     private readonly patientService: PatientService,
     private readonly medicalRecordService: MedicalRecordService,
-    private readonly auditLogService: AuditLogService
+    private readonly auditLogService: AuditLogService,
+    private readonly doctorRepository: DoctorRepository,
+    private readonly appointmentRepository: AppointmentRepository,
   ) {
     this.setupRoutes();
   }
@@ -45,7 +49,7 @@ export class PatientController {
     this.router.post("/", createPatientValidation, this.create.bind(this));
 
     // Protected routes
-    this.router.get("/", authenticateToken, authorizeRole(["admin"]), this.getAll.bind(this));
+    this.router.get("/", authenticateToken, this.getAll.bind(this));
     this.router.get("/:id", authenticateToken, this.getById.bind(this));
 
     this.router.get("/:patientId/medical-records", authenticateToken, this.getPatientMedicalRecords.bind(this));
@@ -59,8 +63,24 @@ export class PatientController {
 
   async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const patients = await this.patientService.getAllPatients(req.query);
-      res.json(patients);
+      const user = (req as any).user;
+
+      if (user.role === "doctor") { // Only patients with appointments
+        const doctor = await this.doctorRepository.findByUserId(user.id);
+        if (!doctor || !doctor.id) {
+          res.status(404).json({ message: "Doctor profile not found" });
+          return;
+        }
+        const patients = await this.patientService.getPatientsByDoctorId(
+          doctor.id,
+        );
+        res.json(patients);
+      } else if (user.role === "admin") {
+        const patients = await this.patientService.getAllPatients(req.query);
+        res.json(patients);
+      } else {
+        res.status(403).json({ message: "Access denied" });
+      }
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -68,13 +88,44 @@ export class PatientController {
 
   async getById(req: Request, res: Response): Promise<void> {
     try {
-      const patient = await this.patientService.getPatientById(
-        parseInt(req.params.id as string)
-      );
+      const user = (req as any).user;
+      const patientId = parseInt(req.params.id as string);
+
+      const patient = await this.patientService.getPatientById(patientId);
       if (!patient) {
         res.status(404).json({ message: "Patient not found" });
         return;
       }
+
+      if (user.role === "patient") { // Can only view own data
+        const patientProfile = await this.patientService.getPatientByUserId(
+          user.id,
+        );
+        if (!patientProfile || patientProfile.id !== patientId) {
+          res.status(403).json({
+            message: "Access denied: You can only view your own data",
+          });
+          return;
+        }
+      } else if (user.role === "doctor") { // Only patients with appointments
+        const doctor = await this.doctorRepository.findByUserId(user.id);
+        if (!doctor) {
+          res.status(404).json({ message: "Doctor profile not found" });
+          return;
+        }
+        const appointments = await this.appointmentRepository.findAll({
+          doctorId: doctor.id,
+          patientId: patientId,
+        });
+        if (appointments.length === 0) {
+          res.status(403).json({
+            message:
+              "Access denied: You can only view patients you have appointments with",
+          });
+          return;
+        }
+      }
+
       res.json(patient);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -100,9 +151,29 @@ export class PatientController {
 
   async update(req: Request, res: Response): Promise<void> {
     try {
+      const user = (req as any).user;
+      const patientId = parseInt(req.params.id as string);
+      if (user.role === "doctor") {
+        res.status(403).json({
+          message: "Access denied: Doctors cannot update patient data",
+        });
+        return;
+      }
+
+      if (user.role === "patient") {
+        const patientProfile = await this.patientService.getPatientByUserId(
+          user.id,
+        );
+        if (!patientProfile || patientProfile.id !== patientId) {
+          res.status(403).json({
+            message: "Access denied: You can only update your own data",
+          });
+          return;
+        }
+      }
       const patient = await this.patientService.updatePatient(
-        parseInt(req.params.id as string),
-        req.body
+        patientId,
+        req.body,
       );
       if (!patient) {
         res.status(404).json({ message: "Patient not found" });
@@ -137,10 +208,23 @@ export class PatientController {
 
   async getPatientMedicalRecords(req: Request, res: Response): Promise<void> {
     try {
+      const user = (req as any).user;
       const patientId = parseInt(req.params.patientId as string);
-      const records = await this.medicalRecordService.getPatientMedicalRecords(
-        patientId
-      );
+      if (user.role === "patient") {
+        const patientProfile = await this.patientService.getPatientByUserId(
+          user.id,
+        );
+        if (!patientProfile || patientProfile.id !== patientId) {
+          res.status(403).json({
+            message:
+              "Access denied: You can only view your own medical records",
+          });
+          return;
+        }
+      }
+
+      const records =
+        await this.medicalRecordService.getPatientMedicalRecords(patientId);
       res.json({ data: records });
     } catch (error: any) {
       if (error.message === "Patient not found") {

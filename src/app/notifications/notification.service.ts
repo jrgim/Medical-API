@@ -12,6 +12,10 @@ export class NotificationService {
     return await this.notificationRepository.findByUserId(userId);
   }
 
+  async getNotificationById(id: number): Promise<Notification | null> {
+    return await this.notificationRepository.findById(id);
+  }
+
   async createNotification(data: NotificationCreateDto): Promise<Notification> {
     return await this.notificationRepository.create(data);
   }
