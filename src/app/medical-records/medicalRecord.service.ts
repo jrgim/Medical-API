@@ -5,12 +5,14 @@ import { databaseService } from "../../database";
 import { MedicalRecord, MedicalRecordCreateDto, MedicalRecordUpdateDto } from "./medicalRecord.model";
 import { TestResult, TestResultCreateDto } from "./testResult.model";
 import { Treatment, TreatmentCreateDto, TreatmentUpdateDto } from "./treatment.model";
+import { PatientRepository } from "../patients/patient.repository";
 
 @Service()
 export class MedicalRecordService {
   constructor(
     private readonly medicalRecordRepository: MedicalRecordRepository,
     private readonly notificationService: NotificationService,
+    private readonly patientRepository: PatientRepository,
   ) {}
 
   async getAllMedicalRecords(criteria: any): Promise<MedicalRecord[]> {
@@ -37,13 +39,16 @@ export class MedicalRecordService {
     const updatedRecord = await this.medicalRecordRepository.update(id, data);
 
     if (updatedRecord) {
-      await this.notificationService.createNotification({
-        userId: record.patientId,
-        title: "Medical Record Updated",
-        message:
-          "Your medical record has been updated by your doctor. Please review the changes in your profile.",
-        type: "alert",
-      });
+      const patient = await this.patientRepository.findById(record.patientId);
+      if (patient && patient.userId) {
+        await this.notificationService.createNotification({
+          userId: patient.userId,
+          title: "Medical Record Updated",
+          message:
+            "Your medical record has been updated by your doctor. Please review the changes in your profile.",
+          type: "alert",
+        });
+      }
     }
 
     return updatedRecord;
@@ -67,6 +72,7 @@ export class MedicalRecordService {
   }
 
   async addTestResult(recordId: number, data: any): Promise<TestResult> {
+    // Verify medical record exists
     const record = await this.medicalRecordRepository.findById(recordId);
     if (!record) {
       throw new Error("Medical Record not found");
@@ -91,12 +97,17 @@ export class MedicalRecordService {
         testResultData.notes || null,
       ],
     });
-    await this.notificationService.createNotification({
-      userId: record.patientId,
-      title: "New Test Result Available",
-      message: `The results of your test "${testResultData.testName}" are now available.`,
-      type: "alert",
-    });
+
+    const patient = await this.patientRepository.findById(record.patientId);
+    if (patient && patient.userId) {
+      await this.notificationService.createNotification({
+        userId: patient.userId,
+        title: "New Test Results Available",
+        message: `The results of your test "${testResultData.testName}" are now available.`,
+        type: "alert",
+      });
+    }
+
     return {
       id: result.lastID!,
       ...testResultData,

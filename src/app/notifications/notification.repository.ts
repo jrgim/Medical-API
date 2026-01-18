@@ -1,8 +1,5 @@
 import { Service } from "typedi";
-import {
-  Notification as NotificationModel,
-  NotificationCreateDto,
-} from "./notification.model";
+import { Notification as NotificationModel,NotificationCreateDto } from "./notification.model";
 import { DatabaseService } from "../../database/database.service";
 
 @Service()
@@ -18,9 +15,9 @@ export class NotificationRepository {
   }
 
   async create(data: NotificationCreateDto): Promise<NotificationModel> {
-    await this.databaseService.execQuery({
+    const result = await this.databaseService.execQuery({
       sql: `
-        INSERT INTO notifications (userId, title, message, type, read)
+        INSERT INTO notifications (userId, title, message, type, isRead)
         VALUES (?, ?, ?, ?, ?)
       `,
       params: [
@@ -28,15 +25,20 @@ export class NotificationRepository {
         data.title,
         data.message,
         data.type || "info",
-        data.read || false,
+        data.isRead ? 1 : 0,
       ],
     });
 
-    const result = await this.databaseService.execQuery({
-      sql: "SELECT * FROM notifications WHERE id = last_insert_rowid()",
-      params: [],
+    if (!result.lastID) {
+      throw new Error("Failed to insert notification");
+    }
+
+    const notification = await this.databaseService.execQuery({
+      sql: "SELECT * FROM notifications WHERE id = ?",
+      params: [result.lastID],
     });
-    return result.rows[0];
+
+    return notification.rows[0];
   }
 
   async markAsRead(id: number): Promise<NotificationModel | null> {
@@ -48,8 +50,8 @@ export class NotificationRepository {
     if (result.rows.length === 0) return null;
 
     await this.databaseService.execQuery({
-      sql: "UPDATE notifications SET read = ? WHERE id = ?",
-      params: [true, id],
+      sql: "UPDATE notifications SET isRead = ? WHERE id = ?",
+      params: [1, id],
     });
 
     const updated = await this.databaseService.execQuery({
