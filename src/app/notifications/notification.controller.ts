@@ -44,9 +44,8 @@ export class NotificationController {
   async create(req: Request, res: Response): Promise<void> {
     try {
       const notificationData = req.body;
-      const notification = await this.notificationService.createNotification(
-        notificationData
-      );
+      const notification =
+        await this.notificationService.createNotification(notificationData);
       res.status(201).json(notification);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -55,13 +54,28 @@ export class NotificationController {
 
   async markAsRead(req: Request, res: Response): Promise<void> {
     try {
-      const notification = await this.notificationService.markAsRead(
-        parseInt(req.params.id as string)
-      );
-      if (!notification) {
+      const user = (req as any).user;
+      const notificationId = parseInt(req.params.id as string);
+
+      const existingNotification =
+        await this.notificationService.getNotificationById(notificationId);
+      if (!existingNotification) {
         res.status(404).json({ message: "Notification not found" });
         return;
       }
+
+      if (existingNotification.userId !== user.id) {
+        res
+          .status(403)
+          .json({
+            message:
+              "Access denied: You can only mark your own notifications as read",
+          });
+        return;
+      }
+
+      const notification =
+        await this.notificationService.markAsRead(notificationId);
       res.json(notification);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -70,13 +84,26 @@ export class NotificationController {
 
   async delete(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.notificationService.deleteNotification(
-        parseInt(req.params.id as string)
-      );
-      if (!result) {
+      const user = (req as any).user;
+      const notificationId = parseInt(req.params.id as string);
+      const existingNotification =
+        await this.notificationService.getNotificationById(notificationId);
+      if (!existingNotification) {
         res.status(404).json({ message: "Notification not found" });
         return;
       }
+
+      if (existingNotification.userId !== user.id) {
+        res
+          .status(403)
+          .json({
+            message:
+              "Access denied: You can only delete your own notifications",
+          });
+        return;
+      }
+
+      await this.notificationService.deleteNotification(notificationId);
       res.sendStatus(204);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
