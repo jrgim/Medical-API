@@ -4,7 +4,7 @@ export interface Notification {
   title: string;
   message: string;
   type: "appointment" | "reminder" | "system" | "alert" | "info";
-  read?: boolean;
+  isRead?: boolean;
   createdAt?: Date;
 }
 
@@ -13,5 +13,5 @@ export interface NotificationCreateDto {
   title: string;
   message: string;
   type: "appointment" | "reminder" | "system" | "alert" | "info";
-  read?: boolean;
+  isRead?: boolean;
 }
