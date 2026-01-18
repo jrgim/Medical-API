@@ -1,6 +1,7 @@
 import { Service } from "typedi";
 import { Router, Request, Response } from "express";
 import { AvailabilityService } from "./availability.service";
+import { DoctorRepository } from "../doctors/doctor.repository";
 import { authenticateToken } from "../../server/middlewares/auth.middleware";
 import { authorizeRole } from "../../server/middlewares/authorization.middleware";
 
@@ -8,7 +9,10 @@ import { authorizeRole } from "../../server/middlewares/authorization.middleware
 export class AvailabilityController {
   private router = Router();
 
-  constructor(private readonly availabilityService: AvailabilityService) {
+  constructor(
+    private readonly availabilityService: AvailabilityService,
+    private readonly doctorRepository: DoctorRepository,
+  ) {
     this.setupRoutes();
   }
 
@@ -38,8 +42,24 @@ export class AvailabilityController {
 
   async setAvailability(req: Request, res: Response): Promise<void> {
     try {
+      const user = (req as any).user;
+      const doctorId = parseInt(req.params.id as string);
+
+      if (user.role === "doctor") {
+        const doctorProfile = await this.doctorRepository.findByUserId(user.id);
+        if (!doctorProfile || doctorProfile.id !== doctorId) {
+          res
+            .status(403)
+            .json({
+              message:
+                "Access denied: You can only manage your own availability",
+            });
+          return;
+        }
+      }
+
       const slots = await this.availabilityService.setAvailability(
-        parseInt(req.params.id as string),
+        doctorId,
         req.body.slots,
       );
       res.status(201).json(slots);
@@ -50,10 +70,24 @@ export class AvailabilityController {
 
   async updateSlot(req: Request, res: Response): Promise<void> {
     try {
-      const slot = await this.availabilityService.updateSlot(
-        parseInt(req.params.slotId as string),
-        req.body,
-      );
+      const user = (req as any).user;
+      const doctorId = parseInt(req.params.id as string);
+      const slotId = parseInt(req.params.slotId as string);
+
+      if (user.role === "doctor") {
+        const doctorProfile = await this.doctorRepository.findByUserId(user.id);
+        if (!doctorProfile || doctorProfile.id !== doctorId) {
+          res
+            .status(403)
+            .json({
+              message:
+                "Access denied: You can only manage your own availability",
+            });
+          return;
+        }
+      }
+
+      const slot = await this.availabilityService.updateSlot(slotId, req.body);
       if (!slot) {
         res.status(404).json({ message: "Slot not found" });
         return;
@@ -66,9 +100,24 @@ export class AvailabilityController {
 
   async deleteSlot(req: Request, res: Response): Promise<void> {
     try {
-      const result = await this.availabilityService.deleteSlot(
-        parseInt(req.params.slotId as string),
-      );
+      const user = (req as any).user;
+      const doctorId = parseInt(req.params.id as string);
+      const slotId = parseInt(req.params.slotId as string);
+
+      if (user.role === "doctor") {
+        const doctorProfile = await this.doctorRepository.findByUserId(user.id);
+        if (!doctorProfile || doctorProfile.id !== doctorId) {
+          res
+            .status(403)
+            .json({
+              message:
+                "Access denied: You can only manage your own availability",
+            });
+          return;
+        }
+      }
+
+      const result = await this.availabilityService.deleteSlot(slotId);
       if (!result) {
         res.status(404).json({ message: "Slot not found" });
         return;
