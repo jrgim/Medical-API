@@ -12,7 +12,7 @@ export interface AuthRequest extends Request {
 export async function authenticateToken(
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> {
   try {
     // Obtener token del header Authorization
@@ -25,15 +25,13 @@ export async function authenticateToken(
 
     const token = authHeader.substring(7);
 
-    // Verificar token usando UserService
     const userService = Container.get(UserService);
     const decoded = await userService.verifyToken(token);
 
-    // Añadir información del usuario a la request
-    req.userId = decoded.userId;
-    req.username = decoded.username;
-    req.email = decoded.email;
-    req.role = decoded.role;
+    (req as any).user = {
+      id: decoded.id,
+      role: decoded.role,
+    };
 
     next();
   } catch (error) {
