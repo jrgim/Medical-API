@@ -20,10 +20,10 @@ export class AppointmentController {
 
   private setupRoutes(): void {
     const createAppointmentValidation = [
-      body("patientId").notEmpty(),
-      body("doctorId").notEmpty(),
-      body("dateTime").isISO8601(),
-      body("reason").notEmpty(),
+      body("doctorId").isInt(),
+      body("appointmentDate").isISO8601(),
+      body("appointmentTime").matches(/^([01]\d|2[0-3]):([0-5]\d)$/),
+      body("reason").optional(),
       validate,
     ];
 
@@ -75,12 +75,43 @@ export class AppointmentController {
 
   async create(req: Request, res: Response): Promise<void> {
     try {
-      const appointment = await this.appointmentService.createAppointment(
-        req.body,
-      );
+      const user = (req as any).user;
+
+      if (!user || !user.id || !user.role) {
+        res.status(401).json({ message: "Authentication required" });
+        return;
+      }
+
+      // If the user is a patient, use their own patientId
+      // If they are a doctor/admin, they can specify patientId in the body
+      let patientId = req.body.patientId;
+
+      if (user.role === "patient") {
+        const patientResult = await this.appointmentService.getPatientByUserId(
+          user.id,
+        );
+        if (!patientResult) {
+          res.status(404).json({ message: "Patient profile not found" });
+          return;
+        }
+        patientId = patientResult.id;
+      } else if (!patientId) {
+        res
+          .status(400)
+          .json({ message: "patientId is required for admin/doctor" });
+        return;
+      }
+
+      const appointment = await this.appointmentService.createAppointment({
+        patientId,
+        doctorId: req.body.doctorId,
+        appointmentDate: req.body.appointmentDate,
+        appointmentTime: req.body.appointmentTime,
+        reason: req.body.reason,
+      });
 
       await this.auditLogService.logAction(
-        (req as any).user.id,
+        user.id,
         "CREATE",
         "appointment",
         appointment.id,
@@ -90,7 +121,7 @@ export class AppointmentController {
     } catch (error: any) {
       if (
         error.message === "Slot already booked" ||
-        error.message === "No availability slot found for this time"
+        error.message === "No availability slot found for this date and time"
       ) {
         res.status(409).json({ message: error.message });
         return;

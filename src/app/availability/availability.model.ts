@@ -1,10 +1,8 @@
 export interface Availability {
   id?: number;
   doctorId: number;
-  dayOfWeek: number; // 0-6 (Monday-Sunday)
-  startTime: string;
-  endTime: string;
-  appointmentId?: number;
+  date: string;
+  time: string;
   isAvailable?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -12,15 +10,13 @@ export interface Availability {
 
 export interface AvailabilityCreateDto {
   doctorId: number;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
+  date: string;
+  time: string;
   isAvailable?: boolean;
 }
 
 export interface AvailabilityUpdateDto {
-  dayOfWeek?: number;
-  startTime?: string;
-  endTime?: string;
+  date?: string;
+  time?: string;
   isAvailable?: boolean;
 }

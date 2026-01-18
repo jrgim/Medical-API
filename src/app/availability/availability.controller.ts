@@ -25,11 +25,10 @@ export class AvailabilityController {
 
   async getAvailability(req: Request, res: Response): Promise<void> {
     try {
-      const { startDate, endDate } = req.query;
+      const { date } = req.query;
       const availability = await this.availabilityService.getDoctorAvailability(
         parseInt(req.params.id as string),
-        startDate as string,
-        endDate as string
+        date as string,
       );
       res.json(availability);
     } catch (error: any) {
@@ -41,7 +40,7 @@ export class AvailabilityController {
     try {
       const slots = await this.availabilityService.setAvailability(
         parseInt(req.params.id as string),
-        req.body.slots
+        req.body.slots,
       );
       res.status(201).json(slots);
     } catch (error: any) {
@@ -53,7 +52,7 @@ export class AvailabilityController {
     try {
       const slot = await this.availabilityService.updateSlot(
         parseInt(req.params.slotId as string),
-        req.body
+        req.body,
       );
       if (!slot) {
         res.status(404).json({ message: "Slot not found" });
@@ -68,7 +67,7 @@ export class AvailabilityController {
   async deleteSlot(req: Request, res: Response): Promise<void> {
     try {
       const result = await this.availabilityService.deleteSlot(
-        parseInt(req.params.slotId as string)
+        parseInt(req.params.slotId as string),
       );
       if (!result) {
         res.status(404).json({ message: "Slot not found" });

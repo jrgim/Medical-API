@@ -172,15 +172,12 @@ export class DatabaseService {
       CREATE TABLE IF NOT EXISTS availabilities (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         doctorId INTEGER NOT NULL,
-        dayOfWeek INTEGER NOT NULL CHECK(dayOfWeek >= 0 AND dayOfWeek <= 6),
-        startTime TIME NOT NULL,
-        endTime TIME NOT NULL,
-        appointmentId INTEGER,
+        date DATE NOT NULL,
+        time TIME NOT NULL,
         isAvailable BOOLEAN DEFAULT 1,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(doctorId) REFERENCES doctors(id) ON DELETE CASCADE,
-        FOREIGN KEY(appointmentId) REFERENCES appointments(id) ON DELETE SET NULL
+        FOREIGN KEY(doctorId) REFERENCES doctors(id) ON DELETE CASCADE
       )
     `);
 
@@ -191,7 +188,7 @@ export class DatabaseService {
         doctorId INTEGER NOT NULL,
         appointmentDate DATE NOT NULL,
         appointmentTime TIME NOT NULL,
-        status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled', 'confirmed', 'cancelled', 'completed', 'no_show')),
+        status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled', 'cancelled', 'completed')),
         reason TEXT,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
