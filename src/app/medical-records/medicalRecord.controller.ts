@@ -6,6 +6,8 @@ import { authenticateToken } from "../../server/middlewares/auth.middleware";
 import { authorizeRole } from "../../server/middlewares/authorization.middleware";
 import { validate } from "../../server/middlewares/validation.middleware";
 import { AuditLogService } from "../audit/auditLog.service";
+import { PatientRepository } from "../patients/patient.repository";
+import { DoctorRepository } from "../doctors/doctor.repository";
 
 @Service()
 export class MedicalRecordController {
@@ -14,6 +16,8 @@ export class MedicalRecordController {
   constructor(
     private readonly medicalRecordService: MedicalRecordService,
     private readonly auditLogService: AuditLogService,
+    private readonly patientRepository: PatientRepository,
+    private readonly doctorRepository: DoctorRepository,
   ) {
     this.setupRoutes();
   }
@@ -64,8 +68,28 @@ export class MedicalRecordController {
 
   async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const criteria = req.query || {};
-      const records = await this.medicalRecordService.getAllMedicalRecords(criteria);
+      const user = (req as any).user;
+      const criteria: any = { ...req.query };
+
+      if (user.role === "patient") {
+        const patient = await this.patientRepository.findByUserId(user.id);
+        if (!patient) {
+          res.status(404).json({ message: "Patient profile not found" });
+          return;
+        }
+        criteria.patientId = patient.id;
+      } else if (user.role === "doctor") {
+
+        const doctor = await this.doctorRepository.findByUserId(user.id);
+        if (!doctor) {
+          res.status(404).json({ message: "Doctor profile not found" });
+          return;
+        }
+        criteria.doctorId = doctor.id;
+      }
+
+      const records =
+        await this.medicalRecordService.getAllMedicalRecords(criteria);
       res.json(records);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -74,10 +98,34 @@ export class MedicalRecordController {
 
   async getById(req: Request, res: Response): Promise<void> {
     try {
-      const record = await this.medicalRecordService.getMedicalRecordById(parseInt(req.params.id as string));
+      const user = (req as any).user;
+      const recordId = parseInt(req.params.id as string);
+
+      const record =
+        await this.medicalRecordService.getMedicalRecordById(recordId);
       if (!record) {
         res.status(404).json({ message: "Medical Record not found" });
         return;
+      }
+
+      if (user.role === "patient") {
+        const patient = await this.patientRepository.findByUserId(user.id);
+        if (!patient || record.patientId !== patient.id) {
+          res.status(403).json({
+            message:
+              "Access denied: You can only view your own medical records",
+          });
+          return;
+        }
+      } else if (user.role === "doctor") {
+        const doctor = await this.doctorRepository.findByUserId(user.id);
+        if (!doctor || record.doctorId !== doctor.id) {
+          res.status(403).json({
+            message:
+              "Access denied: You can only view medical records you created",
+          });
+          return;
+        }
       }
       res.json(record);
     } catch (error: any) {
@@ -87,12 +135,36 @@ export class MedicalRecordController {
 
   async create(req: Request, res: Response): Promise<void> {
     try {
+      const user = (req as any).user;
+      const patientId = req.body.patientId;
+
+      if (user.role === "doctor") {
+        const doctor = await this.doctorRepository.findByUserId(user.id);
+        if (!doctor || !doctor.id) {
+          res.status(404).json({ message: "Doctor profile not found" });
+          return;
+        }
+        const appointments =
+          await this.medicalRecordService.getAppointmentsByDoctorAndPatient(
+            doctor.id,
+            patientId,
+          );
+        if (appointments.length === 0) {
+          res.status(403).json({
+            message:
+              "Access denied: You can only create records for patients you have appointments with",
+          });
+          return;
+        }
+        req.body.doctorId = doctor.id;
+      }
+
       const record = await this.medicalRecordService.createMedicalRecord(
         req.body,
       );
 
       await this.auditLogService.logAction(
-        (req as any).user.id,
+        user.id,
         "CREATE",
         "medicalRecord",
         record.id,
@@ -106,18 +178,33 @@ export class MedicalRecordController {
 
   async update(req: Request, res: Response): Promise<void> {
     try {
+      const user = (req as any).user;
       const recordId = parseInt(req.params.id as string);
+      const existingRecord =
+        await this.medicalRecordService.getMedicalRecordById(recordId);
+      if (!existingRecord) {
+        res.status(404).json({ message: "Medical Record not found" });
+        return;
+      }
+
+      if (user.role === "doctor") {
+        const doctor = await this.doctorRepository.findByUserId(user.id);
+        if (!doctor || existingRecord.doctorId !== doctor.id) {
+          res.status(403).json({
+            message:
+              "Access denied: You can only update medical records you created",
+          });
+          return;
+        }
+      }
+
       const record = await this.medicalRecordService.updateMedicalRecord(
         recordId,
         req.body,
       );
-      if (!record) {
-        res.status(404).json({ message: "Medical Record not found" });
-        return;
-      }
-      
+
       await this.auditLogService.logAction(
-        (req as any).user.id,
+        user.id,
         "UPDATE",
         "medicalRecord",
         recordId,
@@ -155,7 +242,10 @@ export class MedicalRecordController {
   async addTestResult(req: Request, res: Response): Promise<void> {
     try {
       const recordId = parseInt(req.params.id as string);
-      const testResult = await this.medicalRecordService.addTestResult(recordId, req.body);
+      const testResult = await this.medicalRecordService.addTestResult(
+        recordId,
+        req.body,
+      );
       res.status(201).json(testResult);
     } catch (error: any) {
       if (error.message === "Medical Record not found") {
@@ -169,7 +259,10 @@ export class MedicalRecordController {
   async addTreatment(req: Request, res: Response): Promise<void> {
     try {
       const recordId = parseInt(req.params.id as string);
-      const treatment = await this.medicalRecordService.addTreatment(recordId, req.body);
+      const treatment = await this.medicalRecordService.addTreatment(
+        recordId,
+        req.body,
+      );
       res.status(201).json(treatment);
     } catch (error: any) {
       if (error.message === "Medical Record not found") {
@@ -184,7 +277,11 @@ export class MedicalRecordController {
     try {
       const recordId = parseInt(req.params.id as string);
       const treatmentId = parseInt(req.params.treatmentId as string);
-      const treatment = await this.medicalRecordService.updateTreatment(recordId, treatmentId, req.body);
+      const treatment = await this.medicalRecordService.updateTreatment(
+        recordId,
+        treatmentId,
+        req.body,
+      );
       if (!treatment) {
         res.status(404).json({ message: "Treatment not found" });
         return;
