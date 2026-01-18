@@ -43,7 +43,11 @@ export class DoctorController {
 
     async getAll(req: Request, res: Response): Promise<void> {
         try {
-        const doctors = await this.doctorService.getAllDoctors(req.query);
+        const filters = {
+            specialtyId: req.query.specialtyId as string,
+            date: req.query.date as string,
+        };
+        const doctors = await this.doctorService.getAllDoctors(filters);
         res.json(doctors);
         } catch (error: any) {
         res.status(500).json({ message: error.message });
@@ -66,11 +70,9 @@ export class DoctorController {
             user.id,
             );
             if (!doctorProfile || doctorProfile.id !== doctorId) {
-            res
-                .status(403)
-                .json({
+            res.status(403).json({
                 message: "Access denied: You can only view your own profile",
-                });
+            });
             return;
             }
         }
@@ -106,11 +108,9 @@ export class DoctorController {
             user.id,
             );
             if (!doctorProfile || doctorProfile.id !== doctorId) {
-            res
-                .status(403)
-                .json({
+            res.status(403).json({
                 message: "Access denied: You can only update your own profile",
-                });
+            });
             return;
             }
         }

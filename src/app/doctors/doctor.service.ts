@@ -12,7 +12,7 @@ export class DoctorService {
     ) {}
 
     async getAllDoctors(filters?: any): Promise<Doctor[]> {
-        return await this.doctorRepository.findAll();
+        return await this.doctorRepository.findAll(filters);
     }
 
     async getDoctorById(id: number): Promise<Doctor | null> {
