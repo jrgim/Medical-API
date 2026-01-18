@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 export class DoctorService {
     constructor(
         private readonly doctorRepository: DoctorRepository,
-        private readonly userRepository: UserRepository
+        private readonly userRepository: UserRepository,
     ) {}
 
     async getAllDoctors(filters?: any): Promise<Doctor[]> {
@@ -17,6 +17,10 @@ export class DoctorService {
 
     async getDoctorById(id: number): Promise<Doctor | null> {
         return await this.doctorRepository.findById(id);
+    }
+
+    async getDoctorByUserId(userId: number): Promise<Doctor | null> {
+        return await this.doctorRepository.findByUserId(userId);
     }
 
     async createDoctor(data: any): Promise<any> {
