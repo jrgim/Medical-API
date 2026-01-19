@@ -3,7 +3,7 @@ import { MedicalRecordRepository } from "./medicalRecord.repository";
 import { NotificationService } from "../notifications/notification.service";
 import { PatientRepository } from "../patients/patient.repository";
 import { AppointmentRepository } from "../appointments/appointment.repository";
-import { databaseService } from "../../database";
+import { DatabaseService } from "../../database/database.service";
 import { MedicalRecord, MedicalRecordCreateDto, MedicalRecordUpdateDto } from "./medicalRecord.model";
 import { TestResult, TestResultCreateDto } from "./testResult.model";
 import { Treatment, TreatmentCreateDto, TreatmentUpdateDto } from "./treatment.model";
@@ -15,6 +15,7 @@ export class MedicalRecordService {
     private readonly notificationService: NotificationService,
     private readonly patientRepository: PatientRepository,
     private readonly appointmentRepository: AppointmentRepository,
+    private readonly databaseService: DatabaseService,
   ) {}
 
   async getAppointmentsByDoctorAndPatient(doctorId: number, patientId: number) {
@@ -30,7 +31,7 @@ export class MedicalRecordService {
   }
 
   async createMedicalRecord(
-    data: MedicalRecordCreateDto
+    data: MedicalRecordCreateDto,
   ): Promise<MedicalRecord> {
     return await this.medicalRecordRepository.create(data);
   }
@@ -65,7 +66,7 @@ export class MedicalRecordService {
   }
 
   async getPatientMedicalRecords(patientId: number): Promise<MedicalRecord[]> {
-    const patientCheck = await databaseService.execQuery({
+    const patientCheck = await this.databaseService.execQuery({
       sql: "SELECT id FROM patients WHERE id = ?",
       params: [patientId],
     });
@@ -92,7 +93,7 @@ export class MedicalRecordService {
       notes: data.notes,
     };
 
-    const result = await databaseService.execQuery({
+    const result = await this.databaseService.execQuery({
       sql: `INSERT INTO testResults (medicalRecordId, testName, testDate, result, notes)
             VALUES (?, ?, ?, ?, ?)`,
       params: [
@@ -133,7 +134,7 @@ export class MedicalRecordService {
       duration: data.duration,
     };
 
-    const result = await databaseService.execQuery({
+    const result = await this.databaseService.execQuery({
       sql: `INSERT INTO treatments (medicalRecordId, medication, duration)
             VALUES (?, ?, ?)`,
       params: [
@@ -152,10 +153,10 @@ export class MedicalRecordService {
   async updateTreatment(
     recordId: number,
     treatmentId: number,
-    data: TreatmentUpdateDto
+    data: TreatmentUpdateDto,
   ): Promise<Treatment | null> {
     // Verify treatment exists and belongs to the record
-    const treatmentResult = await databaseService.execQuery({
+    const treatmentResult = await this.databaseService.execQuery({
       sql: "SELECT * FROM treatments WHERE id = ? AND medicalRecordId = ?",
       params: [treatmentId, recordId],
     });
@@ -182,12 +183,12 @@ export class MedicalRecordService {
 
     params.push(treatmentId);
 
-    await databaseService.execQuery({
+    await this.databaseService.execQuery({
       sql: `UPDATE treatments SET ${updates.join(", ")} WHERE id = ?`,
       params,
     });
 
-    const updated = await databaseService.execQuery({
+    const updated = await this.databaseService.execQuery({
       sql: "SELECT * FROM treatments WHERE id = ?",
       params: [treatmentId],
     });
