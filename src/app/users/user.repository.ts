@@ -23,14 +23,24 @@ export class UserRepository {
   }
 
   async create(userData: UserCreateDto): Promise<User> {
-    await this.databaseService.execQuery({
+    const insertResult = await this.databaseService.execQuery({
       sql: "INSERT INTO users (email, password, role) VALUES (?, ?, ?)",
       params: [userData.email, userData.password, userData.role],
     });
 
+    if (!insertResult.lastID) {
+      throw new Error("Failed to insert user into database");
+    }
+
     const result = await this.databaseService.execQuery({
-      sql: "SELECT * FROM users WHERE id = last_insert_rowid()",
+      sql: "SELECT * FROM users WHERE id = ?",
+      params: [insertResult.lastID],
     });
+
+    if (!result.rows[0]) {
+      throw new Error("Failed to retrieve created user");
+    }
+
     return result.rows[0];
   }
 

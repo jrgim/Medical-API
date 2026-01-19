@@ -30,9 +30,10 @@ export class AvailabilityRepository {
 
   async bulkCreate(data: AvailabilityCreateDto[]): Promise<Availability[]> {
     const created: Availability[] = [];
+    const insertedIds: number[] = [];
 
     for (const item of data) {
-      await this.databaseService.execQuery({
+      const insertResult = await this.databaseService.execQuery({
         sql: `
           INSERT INTO availabilities (
             doctorId, date, time, isAvailable
@@ -46,11 +47,18 @@ export class AvailabilityRepository {
         ],
       });
 
+      if (insertResult.lastID) {
+        insertedIds.push(insertResult.lastID);
+      }
+    }
+
+    if (insertedIds.length > 0) {
+      const placeholders = insertedIds.map(() => "?").join(",");
       const result = await this.databaseService.execQuery({
-        sql: "SELECT * FROM availabilities WHERE id = last_insert_rowid()",
-        params: [],
+        sql: `SELECT * FROM availabilities WHERE id IN (${placeholders})`,
+        params: insertedIds,
       });
-      created.push(result.rows[0]);
+      return result.rows;
     }
 
     return created;

@@ -40,10 +40,19 @@ export class Api {
     this.apiRouter.use("/doctors", this.doctorController.getRouter());
     this.apiRouter.use("/specialties", this.specialtyController.getRouter());
     this.apiRouter.use("/departments", this.departmentController.getRouter());
-    this.apiRouter.use("/", this.availabilityController.getRouter());
+    this.apiRouter.use(
+      "/availability",
+      this.availabilityController.getRouter(),
+    );
     this.apiRouter.use("/appointments", this.appointmentController.getRouter());
-    this.apiRouter.use("/medical-records",this.medicalRecordController.getRouter());
-    this.apiRouter.use("/notifications", this.notificationController.getRouter());
+    this.apiRouter.use(
+      "/medical-records",
+      this.medicalRecordController.getRouter(),
+    );
+    this.apiRouter.use(
+      "/notifications",
+      this.notificationController.getRouter(),
+    );
     this.apiRouter.use("/audit-logs", this.auditLogController.getRouter());
   }
 

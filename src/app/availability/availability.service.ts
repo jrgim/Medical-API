@@ -1,6 +1,10 @@
 import { Service } from "typedi";
 import { AvailabilityRepository } from "./availability.repository";
-import { Availability, AvailabilityCreateDto, AvailabilityUpdateDto } from "./availability.model";
+import {
+  Availability,
+  AvailabilityCreateDto,
+  AvailabilityUpdateDto,
+} from "./availability.model";
 
 @Service()
 export class AvailabilityService {
@@ -8,15 +12,28 @@ export class AvailabilityService {
     private readonly availabilityRepository: AvailabilityRepository,
   ) {}
 
-  async getDoctorAvailability(doctorId: number, date?: string): Promise<Availability[]> {
+  async getDoctorAvailability(
+    doctorId: number,
+    date?: string,
+  ): Promise<Availability[]> {
     return await this.availabilityRepository.findByDoctorId(doctorId, date);
   }
 
-  async setAvailability(doctorId: number, slots: AvailabilityCreateDto[]): Promise<Availability[]> {
-    return await this.availabilityRepository.bulkCreate(slots);
+  async setAvailability(
+    doctorId: number,
+    slots: AvailabilityCreateDto[],
+  ): Promise<Availability[]> {
+    const slotsWithDoctorId = slots.map((slot) => ({
+      ...slot,
+      doctorId: doctorId,
+    }));
+    return await this.availabilityRepository.bulkCreate(slotsWithDoctorId);
   }
 
-  async updateSlot(id: number, data: AvailabilityUpdateDto): Promise<Availability | null> {
+  async updateSlot(
+    id: number,
+    data: AvailabilityUpdateDto,
+  ): Promise<Availability | null> {
     return await this.availabilityRepository.update(id, data);
   }
 
