@@ -27,10 +27,14 @@ export async function authenticateToken(
 
     const userService = Container.get(UserService);
     const decoded = await userService.verifyToken(token);
+    (req as any).userId = decoded.id;
+    (req as any).role = decoded.role;
+    (req as any).email = decoded.email;
 
     (req as any).user = {
       id: decoded.id,
       role: decoded.role,
+      email: decoded.email,
     };
 
     next();

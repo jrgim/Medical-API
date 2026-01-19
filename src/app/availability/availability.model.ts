@@ -9,7 +9,7 @@ export interface Availability {
 }
 
 export interface AvailabilityCreateDto {
-  doctorId: number;
+  doctorId?: number;
   date: string;
   time: string;
   isAvailable?: boolean;

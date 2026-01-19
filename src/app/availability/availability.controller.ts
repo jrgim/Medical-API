@@ -17,10 +17,25 @@ export class AvailabilityController {
   }
 
   private setupRoutes(): void {
-    this.router.get("/doctors/:id/availability", this.getAvailability.bind(this));
-    this.router.post("/doctors/:id/availability", authenticateToken, authorizeRole(["doctor", "admin"]), this.setAvailability.bind(this));
-    this.router.put("/doctors/:id/availability/:slotId", authenticateToken, authorizeRole(["doctor", "admin"]), this.updateSlot.bind(this));
-    this.router.delete("/doctors/:id/availability/:slotId", authenticateToken, authorizeRole(["doctor", "admin"]), this.deleteSlot.bind(this));
+    this.router.get("/doctors/:doctorId", this.getAvailability.bind(this));
+    this.router.post(
+      "/",
+      authenticateToken,
+      authorizeRole(["doctor", "admin"]),
+      this.createAvailability.bind(this),
+    );
+    this.router.put(
+      "/:slotId",
+      authenticateToken,
+      authorizeRole(["doctor", "admin"]),
+      this.updateSlot.bind(this),
+    );
+    this.router.delete(
+      "/:slotId",
+      authenticateToken,
+      authorizeRole(["doctor", "admin"]),
+      this.deleteSlot.bind(this),
+    );
   }
 
   getRouter(): Router {
@@ -30,8 +45,9 @@ export class AvailabilityController {
   async getAvailability(req: Request, res: Response): Promise<void> {
     try {
       const { date } = req.query;
+      const doctorId = parseInt(req.params.doctorId as string);
       const availability = await this.availabilityService.getDoctorAvailability(
-        parseInt(req.params.id as string),
+        doctorId,
         date as string,
       );
       res.json(availability);
@@ -40,29 +56,29 @@ export class AvailabilityController {
     }
   }
 
-  async setAvailability(req: Request, res: Response): Promise<void> {
+  async createAvailability(req: Request, res: Response): Promise<void> {
     try {
       const user = (req as any).user;
-      const doctorId = parseInt(req.params.id as string);
-
-      if (user.role === "doctor") {
-        const doctorProfile = await this.doctorRepository.findByUserId(user.id);
-        if (!doctorProfile || doctorProfile.id !== doctorId) {
-          res
-            .status(403)
-            .json({
-              message:
-                "Access denied: You can only manage your own availability",
-            });
-          return;
-        }
+      const doctorProfile = await this.doctorRepository.findByUserId(user.id);
+      if (!doctorProfile || !doctorProfile.id) {
+        res.status(404).json({
+          message: "Doctor profile not found for this user",
+        });
+        return;
       }
 
-      const slots = await this.availabilityService.setAvailability(
-        doctorId,
-        req.body.slots,
+      if (!Array.isArray(req.body)) {
+        res.status(400).json({
+          message: "Request body must be an array of availability slots",
+        });
+        return;
+      }
+
+      const result = await this.availabilityService.setAvailability(
+        doctorProfile.id,
+        req.body,
       );
-      res.status(201).json(slots);
+      res.status(201).json(result);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -71,18 +87,25 @@ export class AvailabilityController {
   async updateSlot(req: Request, res: Response): Promise<void> {
     try {
       const user = (req as any).user;
-      const doctorId = parseInt(req.params.id as string);
       const slotId = parseInt(req.params.slotId as string);
 
       if (user.role === "doctor") {
         const doctorProfile = await this.doctorRepository.findByUserId(user.id);
-        if (!doctorProfile || doctorProfile.id !== doctorId) {
-          res
-            .status(403)
-            .json({
-              message:
-                "Access denied: You can only manage your own availability",
-            });
+        if (!doctorProfile || !doctorProfile.id) {
+          res.status(404).json({ message: "Doctor profile not found" });
+          return;
+        }
+
+        const existingSlots =
+          await this.availabilityService.getDoctorAvailability(
+            doctorProfile.id,
+          );
+        const slotBelongsToDoctor = existingSlots.some((s) => s.id === slotId);
+
+        if (!slotBelongsToDoctor) {
+          res.status(403).json({
+            message: "Access denied: You can only manage your own availability",
+          });
           return;
         }
       }
@@ -101,18 +124,25 @@ export class AvailabilityController {
   async deleteSlot(req: Request, res: Response): Promise<void> {
     try {
       const user = (req as any).user;
-      const doctorId = parseInt(req.params.id as string);
       const slotId = parseInt(req.params.slotId as string);
 
       if (user.role === "doctor") {
         const doctorProfile = await this.doctorRepository.findByUserId(user.id);
-        if (!doctorProfile || doctorProfile.id !== doctorId) {
-          res
-            .status(403)
-            .json({
-              message:
-                "Access denied: You can only manage your own availability",
-            });
+        if (!doctorProfile || !doctorProfile.id) {
+          res.status(404).json({ message: "Doctor profile not found" });
+          return;
+        }
+
+        const existingSlots =
+          await this.availabilityService.getDoctorAvailability(
+            doctorProfile.id,
+          );
+        const slotBelongsToDoctor = existingSlots.some((s) => s.id === slotId);
+
+        if (!slotBelongsToDoctor) {
+          res.status(403).json({
+            message: "Access denied: You can only manage your own availability",
+          });
           return;
         }
       }
