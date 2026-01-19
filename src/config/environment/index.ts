@@ -1,5 +1,6 @@
 import { merge } from "lodash";
 import { development } from "./development";
+import { test } from "./test";
 
 const all = {
   env: process.env.NODE_ENV || "development",
