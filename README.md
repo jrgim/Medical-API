@@ -1,6 +1,6 @@
-# Hospital Management API
+# Medical API
 
-Sistema de gestión hospitalaria desarrollado con Node.js, Express y TypeScript que proporciona una API REST completa para la administración de hospitales, incluyendo gestión de pacientes, doctores, citas médicas, historiales clínicos y más.
+Sistema de gestión medica desarrollado con Node.js, Express y TypeScript que proporciona una API REST completa para la administración de hospitales, incluyendo gestión de pacientes, doctores, citas médicas, historiales clínicos y más.
 
 ## 📋 Tabla de Contenidos
 
